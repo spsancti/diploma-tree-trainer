@@ -22,7 +22,7 @@ void NodeTrainer::initWeights()
 NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
 {
     FANN::neural_net temp;
-    temp.create_sparse(0.2f, 3, 32, 22, 1);
+    temp.create_sparse(0.25f, 3, 32, 22, 1);
 
     fann_type min = 1, mse = 1;
     NetworkOptimumParams bestParams = {FANN::TRAIN_RPROP, FANN::LINEAR, FANN::LINEAR};
