@@ -7,7 +7,9 @@ NodeTrainer::NodeTrainer(QVector <int> classCodes_) :
 {
     for(int i = 0; i < nodes.length(); i++)
     {
-        nodes[i].create_standard(3, 32, 22, 1);
+        nodes[i] = QSharedPointer<FANN::neural_net> (new FANN::neural_net);
+        datas[i] = QSharedPointer<FANN::training_data> (new FANN::training_data);
+        nodes[i]->create_standard(3, 32, 22, 1);
     }
 }
 
@@ -15,14 +17,14 @@ void NodeTrainer::initWeights()
 {
     for(int i = 0; i < nodes.length(); i++)
     {
-        nodes[i].init_weights(datas[i]);
+        nodes[i]->init_weights(*datas[i]);
     }
 }
 
 NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
 {
-    FANN::neural_net temp;
-    temp.create_sparse(0.2f, 3, 32, 22, 1);
+    QSharedPointer<FANN::neural_net> temp = QSharedPointer<FANN::neural_net> (new FANN::neural_net);
+    temp->create_sparse(0.2f, 3, 32, 22, 1);
 
     fann_type min = 1, mse = 1;
     NetworkOptimumParams bestParams = {FANN::TRAIN_RPROP, FANN::LINEAR, FANN::LINEAR};
@@ -32,8 +34,8 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
         {
             for(int  j = 2; j < 13; j++)
             {
-                temp.randomize_weights(-0.000f, 0.000f);
-                temp.reset_MSE();
+                temp->randomize_weights(-0.000f, 0.000f);
+                temp->reset_MSE();
 
                 //qDebug() << FANN_TRAIN_NAMES[k] << ":" << FANN_ACTIVATIONFUNC_NAMES[i] << "->" << FANN_ACTIVATIONFUNC_NAMES[j];
 
@@ -42,7 +44,7 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
                 params.hidden    = (FANN::activation_function_enum)i;
                 params.output    = (FANN::activation_function_enum)j;
 
-                mse = examineTrain(&temp, params, &datas[classCode]);
+                mse = examineTrain(temp, params, datas[classCode]);
                 if(mse < min)
                 {
                     min = mse;
@@ -57,7 +59,7 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
     return bestParams;
 }
 
-fann_type NodeTrainer::examineTrain(FANN::neural_net *ann, NetworkOptimumParams params, FANN::training_data *data)
+fann_type NodeTrainer::examineTrain(QSharedPointer<FANN::neural_net> ann, NetworkOptimumParams params, QSharedPointer<FANN::training_data> data)
 {
     ann->set_training_algorithm(params.algorithm);
     ann->set_activation_function_hidden(params.hidden);
@@ -75,12 +77,12 @@ fann_type NodeTrainer::trainNodes()
     {
         NetworkOptimumParams params = detectOptimumTrainParams(i);
 
-        nodes[i].set_training_algorithm(params.algorithm);
-        nodes[i].set_activation_function_hidden(params.hidden);
-        nodes[i].set_activation_function_output(params.output);
+        nodes[i]->set_training_algorithm(params.algorithm);
+        nodes[i]->set_activation_function_hidden(params.hidden);
+        nodes[i]->set_activation_function_output(params.output);
 
-        nodes[i].train_on_data(datas[i], 50000, 1000, 1e-5);
-        mse += nodes[i].get_MSE();
+        nodes[i]->train_on_data(*datas[i], 50000, 1000, 1e-5);
+        mse += nodes[i]->get_MSE();
     }
 
     return mse;
@@ -92,7 +94,7 @@ bool NodeTrainer::saveNetworks()
     bool success = true;
     for(int i = 0; i < datas.length(); i++)
     {
-        success = nodes[i].save(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".net").toStdString());
+        success = nodes[i]->save(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".net").toStdString());
         if(!success)
             return false;
     }
@@ -106,11 +108,20 @@ bool NodeTrainer::loadData()
     bool success = true;
     for(int i = 0; i < datas.length(); i++)
     {
-        success = datas[i].read_train_from_file(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".dat").toStdString());
+        success = datas[i]->read_train_from_file(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".dat").toStdString());
         if(!success)
             return false;
-        datas[i].shuffle_train_data();
+        datas[i]->shuffle_train_data();
     }
 
     return success;
+}
+
+NodeTrainer::~NodeTrainer()
+{
+    for(int i = 0; i < nodes.length(); i++)
+    {
+        nodes[i].clear();
+        datas[i].clear();
+    }
 }

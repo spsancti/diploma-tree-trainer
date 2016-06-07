@@ -6,6 +6,7 @@
 #include "fann_cpp.h"
 #include "qdebug.h"
 #include <QVector>
+#include <QSharedPointer>
 
 struct NetworkOptimumParams
 {
@@ -18,11 +19,12 @@ class NodeTrainer
 {
 public:
    NodeTrainer(QVector <int> classCodes_);
+   ~NodeTrainer();
 
    void initWeights();
 
    NetworkOptimumParams detectOptimumTrainParams(int classCode);
-   fann_type examineTrain(FANN::neural_net *ann, NetworkOptimumParams params, FANN::training_data *data);
+   fann_type examineTrain(QSharedPointer<FANN::neural_net> ann, NetworkOptimumParams params, QSharedPointer<FANN::training_data> data);
 
    fann_type trainNodes();
 
@@ -32,11 +34,10 @@ public:
     inline void setFilename(QString filename) { filename_ = filename; }
     bool loadData();
 
-
 private:
     QVector <int> classCodes;
-    QVector <FANN::neural_net> nodes;
-    QVector <FANN::training_data> datas;
+    QVector <QSharedPointer<FANN::neural_net> > nodes;
+    QVector <QSharedPointer<FANN::training_data> > datas;
     QString filename_;
 };
 
