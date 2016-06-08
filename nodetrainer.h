@@ -7,7 +7,9 @@
 #include "qdebug.h"
 #include <QVector>
 #include <QSharedPointer>
-
+#include <QXmlStreamWriter>
+#include <QFile>
+#include <QFileInfo>
 struct NetworkOptimumParams
 {
     FANN::training_algorithm_enum algorithm;
@@ -23,22 +25,27 @@ public:
 
    void initWeights();
 
-   NetworkOptimumParams detectOptimumTrainParams(int classCode);
+   NetworkOptimumParams detectOptimumTrainParams(int idx);
    fann_type examineTrain(QSharedPointer<FANN::neural_net> ann, NetworkOptimumParams params, QSharedPointer<FANN::training_data> data);
 
    fann_type trainNodes();
 
    bool saveNetworks();
-
+   bool saveXML();
 public:
-    inline void setFilename(QString filename) { filename_ = filename; }
-    bool loadData();
+    bool setFilename(QString filename);
+    bool loadData(QString filename);
+    bool loadClassNames(QString filename);
 
 private:
     QVector <int> classCodes;
+    QMap<int, QString> classNames;
+
     QVector <QSharedPointer<FANN::neural_net> > nodes;
     QVector <QSharedPointer<FANN::training_data> > datas;
-    QString filename_;
+    QFileInfo fileInfo;
 };
+
+
 
 #endif // NODETRAINER_H

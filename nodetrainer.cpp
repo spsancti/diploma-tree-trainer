@@ -9,7 +9,7 @@ NodeTrainer::NodeTrainer(QVector <int> classCodes_) :
     {
         nodes[i] = QSharedPointer<FANN::neural_net> (new FANN::neural_net);
         datas[i] = QSharedPointer<FANN::training_data> (new FANN::training_data);
-        nodes[i]->create_standard(3, 32, 22, 1);
+        nodes[i]-> create_standard(3, 32, 22, 1);
     }
 }
 
@@ -23,21 +23,20 @@ void NodeTrainer::initWeights()
 
 NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
 {
-    QSharedPointer<FANN::neural_net> temp = QSharedPointer<FANN::neural_net> (new FANN::neural_net);
+    QSharedPointer<FANN::neural_net> temp
+            = QSharedPointer<FANN::neural_net> (new FANN::neural_net);
     temp->create_sparse(0.2f, 3, 32, 22, 1);
 
     fann_type min = 1, mse = 1;
     NetworkOptimumParams bestParams = {FANN::TRAIN_RPROP, FANN::LINEAR, FANN::LINEAR};
     for(int k = 0; k < 4; k++)
     {
-        for(int  i = 2; i < 13; i++)
+        for(int  i = 12; i > 1; i--)
         {
-            for(int  j = 2; j < 13; j++)
+            for(int  j = 12; j > 1; j--)
             {
-                temp->randomize_weights(-0.000f, 0.000f);
+                temp->randomize_weights(0.000f, 0.000f);
                 temp->reset_MSE();
-
-                //qDebug() << FANN_TRAIN_NAMES[k] << ":" << FANN_ACTIVATIONFUNC_NAMES[i] << "->" << FANN_ACTIVATIONFUNC_NAMES[j];
 
                 NetworkOptimumParams params;
                 params.algorithm = (FANN::training_algorithm_enum) k;
@@ -45,7 +44,7 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
                 params.output    = (FANN::activation_function_enum)j;
 
                 mse = examineTrain(temp, params, datas[classCode]);
-                if(mse < min)
+                if(mse <= min)
                 {
                     min = mse;
                     bestParams = params;
@@ -54,12 +53,17 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
         }
     }
 
-    qDebug() << "Best fit: " << FANN_TRAIN_NAMES[bestParams.algorithm] << ":" << FANN_ACTIVATIONFUNC_NAMES[bestParams.hidden] << "->" << FANN_ACTIVATIONFUNC_NAMES[bestParams.output] << "with MSE: " << min;
+    qDebug() << "Best fit: " << FANN_TRAIN_NAMES[bestParams.algorithm]
+             << ":" << FANN_ACTIVATIONFUNC_NAMES[bestParams.hidden]
+             << "->" << FANN_ACTIVATIONFUNC_NAMES[bestParams.output]
+             << "with MSE: " << min;
 
     return bestParams;
 }
 
-fann_type NodeTrainer::examineTrain(QSharedPointer<FANN::neural_net> ann, NetworkOptimumParams params, QSharedPointer<FANN::training_data> data)
+fann_type NodeTrainer::examineTrain(QSharedPointer<FANN::neural_net> ann,
+                                    NetworkOptimumParams params,
+                                    QSharedPointer<FANN::training_data> data)
 {
     ann->set_training_algorithm(params.algorithm);
     ann->set_activation_function_hidden(params.hidden);
@@ -81,7 +85,7 @@ fann_type NodeTrainer::trainNodes()
         nodes[i]->set_activation_function_hidden(params.hidden);
         nodes[i]->set_activation_function_output(params.output);
 
-        nodes[i]->train_on_data(*datas[i], 50000, 1000, 1e-5);
+        nodes[i]->train_on_data(*datas[i], 5000, 1000, 1e-5);
         mse += nodes[i]->get_MSE();
     }
 
@@ -92,9 +96,15 @@ fann_type NodeTrainer::trainNodes()
 bool NodeTrainer::saveNetworks()
 {
     bool success = true;
+
     for(int i = 0; i < datas.length(); i++)
     {
-        success = nodes[i]->save(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".net").toStdString());
+        success = nodes[i]->save(QString(
+                                     fileInfo.path()
+                                     + "/class"
+                                     + QString::number(classCodes[i])
+                                     + ".net")
+                                 .toStdString());
         if(!success)
             return false;
     }
@@ -102,19 +112,95 @@ bool NodeTrainer::saveNetworks()
     return success;
 }
 
-
-bool NodeTrainer::loadData()
+bool NodeTrainer::saveXML()
 {
+    QFile f(fileInfo.path() + "/classifier.xml");
+    if(!f.open(QIODevice::ReadWrite | QIODevice::Truncate))
+        return false;
+
+    QXmlStreamWriter xml(&f);
+
+    xml.setAutoFormatting(true);
+    xml.writeStartDocument();
+
+    xml.writeStartElement("tree");
+
+    for(int i = 0; i < nodes.length(); i++)
+    {
+        xml.writeStartElement("classifier");
+        xml.writeAttribute("idx", QString::number(i));
+            xml.writeStartElement("disease");
+                xml.writeCharacters(classNames[classCodes[i]]);
+            xml.writeEndElement(); //disease
+            xml.writeStartElement("code");
+                xml.writeCharacters(QString::number(classCodes[i]));
+            xml.writeEndElement(); //code
+            xml.writeStartElement("path");
+                xml.writeCharacters(QString("class" + QString::number(classCodes[i])+ ".net"));
+            xml.writeEndElement(); //path
+        xml.writeEndElement(); // classifier
+    }
+
+    xml.writeEndElement(); // /tree
+    xml.writeEndDocument();
+
+    f.flush();
+    f.close();
+
+    return true;
+}
+
+bool NodeTrainer::setFilename(QString filename)
+{
+    fileInfo.setFile(filename);
+    if(!fileInfo.exists())
+        return false;
+    else
+        return true;
+}
+
+bool NodeTrainer::loadData(QString filename)
+{
+    if(!setFilename(filename))
+        return false;
     bool success = true;
     for(int i = 0; i < datas.length(); i++)
     {
-        success = datas[i]->read_train_from_file(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".dat").toStdString());
+        success = datas[i]->read_train_from_file(QString(
+                                                     fileInfo.path()
+                                                     + "/"
+                                                     + fileInfo.baseName()
+                                                     + QString::number(classCodes[i])
+                                                     + ".dat")
+                                                 .toStdString());
         if(!success)
             return false;
         datas[i]->shuffle_train_data();
     }
 
     return success;
+}
+
+bool NodeTrainer::loadClassNames(QString filename)
+{
+    QFile f(filename);
+    if(!f.open(QIODevice::ReadOnly))
+        return false;
+
+    char buffer[128];
+    while(!f.atEnd())
+    {
+        f.readLine(buffer, 128);
+
+        char classname[100];
+        int classcode;
+
+        sscanf(buffer, "%d%s", &classcode, classname);
+
+        classNames[classcode] = classname;
+    }
+
+    return true;
 }
 
 NodeTrainer::~NodeTrainer()
