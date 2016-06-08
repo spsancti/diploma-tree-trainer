@@ -2,6 +2,12 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QDateTime>
+
+#include "datasplitter.h"
+#include "trainerthread.h"
 
 namespace Ui {
 class MainWindow;
@@ -17,6 +23,19 @@ public:
 
 private:
     Ui::MainWindow *ui;
+
+public slots:
+    void updateLeData();
+    void updateLeNames();
+
+    void prepareData();
+
+    void startLearning();
+    void abortLearning();
+    void error(QString err);
+private:
+    TrainerThread *trainer;
+
 };
 
 #endif // MAINWINDOW_H

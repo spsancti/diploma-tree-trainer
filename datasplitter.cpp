@@ -2,7 +2,24 @@
 #include "QDebug"
 DataSplitter::DataSplitter() : classNumber(0)
 {
+    classData = NULL;
+}
 
+bool DataSplitter::exists()
+{
+    if(classData == NULL)
+        return false;
+
+    QFileInfo info;
+    int cnt = 0;
+    for(int i = 0; i < classNumber; i++)
+    {
+        info.setFile(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".dat"));
+        if(info.exists())
+            cnt ++;
+    }
+    if(cnt == classNumber) return true;
+    else return false;
 }
 
 bool DataSplitter::loadData(QString filename)
@@ -33,9 +50,10 @@ bool DataSplitter::splitData()
     }
 
     classNumber = j;
-    FANN::training_data * classData = new FANN::training_data[classNumber];
 
     int pos = 0;
+    classData = new FANN::training_data[classNumber];
+
     for(int i = 0; i < classNumber; i ++)
     {
         classData[i] = data;
@@ -52,11 +70,20 @@ bool DataSplitter::splitData()
                 classData[i].get_output()[k][0] = 0;
             }
         }
-
-        if(classData[i].save_train(QString(filename_.split('.')[0] + QString::number(classIds[i+1])+ ".dat").toStdString()) == -1)
-            return false;
     }
 
-    delete [] classData;
+    return true;
+}
+
+bool DataSplitter::saveData()
+{
+    if(classData == NULL)
+        return false;
+
+    for(int i = 0; i < classNumber; i++)
+    {
+        if(classData[i].save_train(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".dat").toStdString()) == -1)
+            return false;
+    }
     return true;
 }

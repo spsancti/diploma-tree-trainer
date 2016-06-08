@@ -10,6 +10,8 @@
 #include <QXmlStreamWriter>
 #include <QFile>
 #include <QFileInfo>
+#include <QObject>
+
 struct NetworkOptimumParams
 {
     FANN::training_algorithm_enum algorithm;
@@ -17,11 +19,12 @@ struct NetworkOptimumParams
     FANN::activation_function_enum output;
 };
 
-class NodeTrainer
+class NodeTrainer : public QObject
 {
+    Q_OBJECT
 public:
-   NodeTrainer(QVector <int> classCodes_);
-   ~NodeTrainer();
+   NodeTrainer();
+   virtual ~NodeTrainer();
 
    void initWeights();
 
@@ -36,6 +39,11 @@ public:
     bool setFilename(QString filename);
     bool loadData(QString filename);
     bool loadClassNames(QString filename);
+    bool init();
+
+signals:
+    void echo(QString);
+    void error(QString);
 
 private:
     QVector <int> classCodes;
