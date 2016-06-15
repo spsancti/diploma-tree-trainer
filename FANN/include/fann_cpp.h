@@ -1129,6 +1129,14 @@ public:
             }
         }
 
+        void nullify_weights()
+        {
+            if (ann != NULL)
+            {
+                fann_nullify_weights(ann);
+            }
+        }
+
         /* Method: init_weights
 
   	        Initialize the weights using Widrow + Nguyen's algorithm.
@@ -3652,9 +3660,9 @@ public:
 
            This function appears in FANN >= 1.1.0.   
          */ 
-        std::string get_errstr()
+        char * get_errstr()
         {
-            return std::string(fann_get_errstr(reinterpret_cast<struct fann_error *>(ann)));
+            return ann->errstr;
         }
 
         /* Method: print_error

@@ -33,9 +33,11 @@ public slots:
     void startLearning();
     void abortLearning();
     void error(QString err);
+    void handleResult(float){ isRunning = false;}
+    void openHelp();
 private:
     TrainerThread *trainer;
-
+    bool isRunning;
 };
 
 #endif // MAINWINDOW_H

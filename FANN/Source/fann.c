@@ -27,7 +27,7 @@
 #include "config.h"
 #include "fann.h"
 
-/* #define FANN_NO_SEED */
+ #define FANN_NO_SEED
 
 FANN_EXTERNAL struct fann *FANN_API fann_create_standard(unsigned int num_layers, ...)
 {
@@ -83,7 +83,7 @@ FANN_EXTERNAL struct fann *FANN_API fann_create_sparse(float connection_rate,
 	}
 	va_end(layer_sizes);
 
-	ann = fann_create_sparse_array(connection_rate, num_layers, layers);
+    ann = fann_create_sparse_array(connection_rate, num_layers, layers);
 
 	free(layers);
 
@@ -826,6 +826,25 @@ FANN_EXTERNAL void FANN_API fann_randomize_weights(struct fann *ann, fann_type m
 	{
 		fann_clear_train_arrays(ann);
 	}
+#endif
+}
+
+FANN_EXTERNAL void FANN_API fann_nullify_weights(struct fann *ann)
+{
+    fann_type *last_weight;
+    fann_type *weights = ann->weights;
+
+    last_weight = weights + ann->total_connections;
+    for(; weights != last_weight; weights++)
+    {
+        *weights = (fann_type) (0);
+    }
+
+#ifndef FIXEDFANN
+    if(ann->prev_train_slopes != NULL)
+    {
+        fann_clear_train_arrays(ann);
+    }
 #endif
 }
 

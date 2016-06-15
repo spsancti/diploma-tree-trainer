@@ -1,3 +1,4 @@
+#define FANN_NO_SEED
 #include "mainwindow.h"
 #include <QApplication>
 #include "fann.h"

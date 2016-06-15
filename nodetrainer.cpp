@@ -20,14 +20,19 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
     temp->create_sparse(0.2f, 3, 32, 22, 1);
 
     fann_type min = 1, mse = 1;
-    NetworkOptimumParams bestParams = {FANN::TRAIN_RPROP, FANN::LINEAR, FANN::LINEAR};
-    for(int k = 0; k < 4; k++)
+    NetworkOptimumParams bestParams = {FANN::TRAIN_RPROP, FANN::SIGMOID, FANN::LINEAR};
+    for(int k = FANN::TRAIN_INCREMENTAL; k <= FANN::TRAIN_SARPROP; k++)
     {
-        for(int  i = 12; i > 1; i--)
+        for(int  i = FANN::LINEAR; i <= FANN::COS_SYMMETRIC; i++)
         {
-            for(int  j = 12; j > 1; j--)
+            for(int  j = FANN::LINEAR; j <= FANN::COS_SYMMETRIC; j++)
             {
-                temp->randomize_weights(0.000f, 0.000f);
+                //skip THRESHOLD as it has no derivative
+                if(i == FANN::THRESHOLD
+                || j == FANN::THRESHOLD)
+                    continue;
+
+                temp->nullify_weights();
                 temp->reset_MSE();
 
                 NetworkOptimumParams params;
@@ -36,7 +41,7 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
                 params.output    = (FANN::activation_function_enum)j;
 
                 mse = examineTrain(temp, params, datas[classCode]);
-                if(mse <= min)
+                if(mse < min)
                 {
                     min = mse;
                     bestParams = params;
@@ -63,7 +68,9 @@ fann_type NodeTrainer::examineTrain(QSharedPointer<FANN::neural_net> ann,
     ann->train_on_data(*data, 100, 0, 0.0);
 
     if(ann->get_errno() != FANN_E_NO_ERROR)
+    {
         emit error("Error occured inside of library. Please, beat programmer!");
+    }
     return ann->get_MSE();
 }
 
@@ -78,7 +85,7 @@ fann_type NodeTrainer::trainNodes()
         nodes[i]->set_activation_function_hidden(params.hidden);
         nodes[i]->set_activation_function_output(params.output);
 
-        nodes[i]->train_on_data(*datas[i], 5000, 1000, 1e-5);
+        nodes[i]->train_on_data(*datas[i], 5000, 1000, 1e-4);
         if(nodes[i]->get_errno() != FANN_E_NO_ERROR)
             emit error("Error occured inside of library. Please, beat programmer!");
         mse += nodes[i]->get_MSE();
@@ -128,6 +135,7 @@ bool NodeTrainer::saveXML()
     {
         xml.writeStartElement("classifier");
         xml.writeAttribute("idx", QString::number(i));
+        xml.writeAttribute("mse", QString::number(nodes[i]->get_MSE()));
             xml.writeStartElement("disease");
                 xml.writeCharacters(classNames[classCodes[i]]);
             xml.writeEndElement(); //disease
@@ -204,7 +212,8 @@ bool NodeTrainer::loadClassNames(QString filename)
         char classname[100];
         int classcode;
 
-        sscanf(buffer, "%d%s", &classcode, classname);
+        if(sscanf(buffer, "%d%s", &classcode, classname) != 2)
+            return false;
 
         classCodes.push_back(classcode);
         classNames[classcode] = classname;
@@ -221,7 +230,7 @@ bool NodeTrainer::init()
     {
         nodes.push_back(QSharedPointer<FANN::neural_net> (new FANN::neural_net));
         datas.push_back(QSharedPointer<FANN::training_data> (new FANN::training_data));
-        nodes[i]-> create_standard(3, 32, 22, 1);
+        nodes[i]-> create_sparse(1.0f, 3, 32, 22, 1);
     }
     return true;
 }

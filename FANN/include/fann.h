@@ -300,6 +300,8 @@ FANN_EXTERNAL fann_type * FANN_API fann_run(struct fann *ann, fann_type * input)
 FANN_EXTERNAL void FANN_API fann_randomize_weights(struct fann *ann, fann_type min_weight,
 												   fann_type max_weight);
 
+FANN_EXTERNAL void FANN_API fann_nullify_weights(struct fann *ann);
+
 /* Function: fann_init_weights
   	Initialize the weights using Widrow + Nguyen's algorithm.
 	
