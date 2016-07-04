@@ -19,7 +19,12 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
             = QSharedPointer<FANN::neural_net> (new FANN::neural_net);
     temp->create_sparse(0.2f, 3, 32, 22, 1);
 
-    fann_type min = 1, mse = 1;
+
+    QSharedPointer<FANN::training_data> pSubset
+            = QSharedPointer<FANN::training_data>(new FANN::training_data(*datas[classCode]));
+    pSubset->subset_train_data(0, std::min(pSubset->length_train_data(), 100u));
+
+    fann_type min = 1000, mse = 1000;
     NetworkOptimumParams bestParams = {FANN::TRAIN_RPROP, FANN::SIGMOID, FANN::LINEAR};
     for(int k = FANN::TRAIN_INCREMENTAL; k <= FANN::TRAIN_SARPROP; k++)
     {
@@ -40,7 +45,7 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
                 params.hidden    = (FANN::activation_function_enum)i;
                 params.output    = (FANN::activation_function_enum)j;
 
-                mse = examineTrain(temp, params, datas[classCode]);
+                mse = examineTrain(temp, params, pSubset);
                 if(mse < min)
                 {
                     min = mse;

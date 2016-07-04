@@ -376,7 +376,7 @@ namespace FANN
             Copy constructor constructs a copy of the training data.
             Corresponds to the C API <fann_duplicate_train_data> function.
         */
-        training_data(const training_data &data)
+        training_data(const training_data &data) : train_data(NULL)
         {
             destroy_train();
             if (data.train_data != NULL)

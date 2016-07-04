@@ -11,7 +11,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QObject>
-
+#include <algorithm>
 struct NetworkOptimumParams
 {
     FANN::training_algorithm_enum algorithm;

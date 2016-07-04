@@ -11,8 +11,8 @@ bool DataSplitter::exists()
         return false;
 
     QFileInfo info;
-    int cnt = 0;
-    for(int i = 0; i < classNumber; i++)
+    size_t cnt = 0;
+    for(size_t i = 0; i < classNumber; i++)
     {
         info.setFile(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".dat"));
         if(info.exists())
@@ -54,7 +54,7 @@ bool DataSplitter::splitData()
     int pos = 0;
     classData = new FANN::training_data[classNumber];
 
-    for(int i = 0; i < classNumber; i ++)
+    for(size_t i = 0; i < classNumber; i ++)
     {
         classData[i] = data;
         pos += samples[i];
@@ -80,7 +80,7 @@ bool DataSplitter::saveData()
     if(classData == NULL)
         return false;
 
-    for(int i = 0; i < classNumber; i++)
+    for(size_t i = 0; i < classNumber; i++)
     {
         if(classData[i].save_train(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".dat").toStdString()) == -1)
             return false;
