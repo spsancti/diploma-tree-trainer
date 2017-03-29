@@ -9,7 +9,9 @@ void NodeTrainer::initWeights()
 {
     for(int i = 0; i < nodes.length(); i++)
     {
-        nodes[i]->init_weights(*datas[i]);
+        unsigned int inputs  = trainDatas[i]->num_input_train_data();
+        nodes[i]-> create_sparse(1.0f, 3, inputs, 2 * (inputs + 1) / 3, 1);
+        nodes[i]->init_weights(*trainDatas[i]);
     }
 }
 
@@ -17,12 +19,18 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
 {
     QSharedPointer<FANN::neural_net> temp
             = QSharedPointer<FANN::neural_net> (new FANN::neural_net);
-    temp->create_sparse(0.2f, 3, 32, 22, 1);
+    unsigned int inputs  = trainDatas[classCode]->num_input_train_data();
+    temp -> create_sparse(0.2f, 3, inputs, 2 * (inputs + 1) / 3, 1);
 
 
-    QSharedPointer<FANN::training_data> pSubset
-            = QSharedPointer<FANN::training_data>(new FANN::training_data(*datas[classCode]));
-    pSubset->subset_train_data(0, std::min(pSubset->length_train_data(), 100u));
+
+    QSharedPointer<FANN::training_data> pTrain
+            = QSharedPointer<FANN::training_data>(new FANN::training_data(*trainDatas[classCode]));
+    pTrain->subset_train_data(0, std::min(pTrain->length_train_data(), 100u));
+
+    QSharedPointer<FANN::training_data> pTest
+            = QSharedPointer<FANN::training_data>(new FANN::training_data(*testDatas[classCode]));
+    pTest->subset_train_data(0, std::min(pTest->length_train_data(), 100u));
 
     fann_type min = 1000, mse = 1000;
     NetworkOptimumParams bestParams = {FANN::TRAIN_RPROP, FANN::SIGMOID, FANN::LINEAR};
@@ -45,7 +53,7 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
                 params.hidden    = (FANN::activation_function_enum)i;
                 params.output    = (FANN::activation_function_enum)j;
 
-                mse = examineTrain(temp, params, pSubset);
+                mse = examineTrain(temp, params, pTrain, pTest);
                 if(mse < min)
                 {
                     min = mse;
@@ -64,19 +72,25 @@ NetworkOptimumParams NodeTrainer::detectOptimumTrainParams(int classCode)
 
 fann_type NodeTrainer::examineTrain(QSharedPointer<FANN::neural_net> ann,
                                     NetworkOptimumParams params,
-                                    QSharedPointer<FANN::training_data> data)
+                                    QSharedPointer<FANN::training_data> data,
+                                    QSharedPointer<FANN::training_data> testData)
 {
     ann->set_training_algorithm(params.algorithm);
     ann->set_activation_function_hidden(params.hidden);
     ann->set_activation_function_output(params.output);
 
     ann->train_on_data(*data, 100, 0, 0.0);
+    float trainMSE = ann->get_MSE();
+    ann->reset_MSE();
+
+    ann->test_data(*testData);
+    float testMSE = ann->get_MSE();
 
     if(ann->get_errno() != FANN_E_NO_ERROR)
     {
         emit error("Error occured inside of library. Please, beat programmer!");
     }
-    return ann->get_MSE();
+    return (trainMSE + testMSE) / 2;
 }
 
 fann_type NodeTrainer::trainNodes()
@@ -90,10 +104,42 @@ fann_type NodeTrainer::trainNodes()
         nodes[i]->set_activation_function_hidden(params.hidden);
         nodes[i]->set_activation_function_output(params.output);
 
-        nodes[i]->train_on_data(*datas[i], 5000, 1000, 1e-4);
+        float testMSE = 1, prevTestMSE = 1.1;
+        int epochs = 0;
+        QString termination = "";
+
+        while (1)
+        {
+           if(testMSE < 1e-2)
+            {
+                termination = " Reached minima";
+                break;
+            }
+
+            float diff = fabsf(prevTestMSE - testMSE);
+            emit echo(QString::number(diff));
+            if(diff < 1e-4)
+            {
+                termination = " Stagnation";
+                break;
+            }
+
+            nodes[i]->train_epoch(*trainDatas[i]);
+            nodes[i]->reset_MSE();
+
+            prevTestMSE = testMSE;
+            nodes[i]->test_data(*testDatas[i]);
+            mse = testMSE = nodes[i]->get_MSE();
+
+            epochs ++;
+        }
+
+        emit echo("Epochs :" + QString::number(epochs) + termination);
+/*
+        nodes[i]->train_on_data(*trainDatas[i], 5000, 1000, 1e-4);
         if(nodes[i]->get_errno() != FANN_E_NO_ERROR)
             emit error("Error occured inside of library. Please, beat programmer!");
-        mse += nodes[i]->get_MSE();
+        mse += nodes[i]->get_MSE();*/
     }
 
     return mse;
@@ -104,7 +150,7 @@ bool NodeTrainer::saveNetworks()
 {
     bool success = true;
 
-    for(int i = 0; i < datas.length(); i++)
+    for(int i = 0; i < nodes.length(); i++)
     {
         success = nodes[i]->save(QString(
                                      fileInfo.path()
@@ -178,24 +224,30 @@ bool NodeTrainer::loadData(QString filename)
         return false;
     }
 
-    bool success = true;
-    for(int i = 0; i < datas.length(); i++)
+    for(int i = 0; i < nodes.length(); i++)
     {
-        success = datas[i]->read_train_from_file(QString(
+        bool successTrain = trainDatas[i]->read_train_from_file(QString(
                                                      fileInfo.path()
                                                      + "/"
                                                      + fileInfo.baseName()
                                                      + QString::number(classCodes[i])
-                                                     + ".dat")
+                                                     + "-train.dat")
                                                  .toStdString());
-        if(!success)
+        bool successTest = testDatas[i]->read_train_from_file(QString(
+                                                     fileInfo.path()
+                                                     + "/"
+                                                     + fileInfo.baseName()
+                                                     + QString::number(classCodes[i])
+                                                     + "-test.dat")
+                                                 .toStdString());
+
+        if(!successTrain || !successTest)
         {
             return false;
         }
-        datas[i]->shuffle_train_data();
     }
 
-    return success;
+    return true;
 }
 
 bool NodeTrainer::loadClassNames(QString filename)
@@ -230,12 +282,13 @@ bool NodeTrainer::loadClassNames(QString filename)
 bool NodeTrainer::init()
 {
     nodes.clear();
-    datas.clear();
+    trainDatas.clear();
+    testDatas.clear();
     for(int i = 0; i < classCodes.length(); i++)
     {
         nodes.push_back(QSharedPointer<FANN::neural_net> (new FANN::neural_net));
-        datas.push_back(QSharedPointer<FANN::training_data> (new FANN::training_data));
-        nodes[i]-> create_sparse(1.0f, 3, 32, 22, 1);
+        trainDatas.push_back(QSharedPointer<FANN::training_data> (new FANN::training_data));
+        testDatas.push_back(QSharedPointer<FANN::training_data> (new FANN::training_data));
     }
     return true;
 }
@@ -245,6 +298,7 @@ NodeTrainer::~NodeTrainer()
     for(int i = 0; i < nodes.length(); i++)
     {
         nodes[i].clear();
-        datas[i].clear();
+        trainDatas[i].clear();
+        testDatas[i].clear();
     }
 }

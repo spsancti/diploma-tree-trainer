@@ -29,7 +29,7 @@ public:
    void initWeights();
 
    NetworkOptimumParams detectOptimumTrainParams(int idx);
-   fann_type examineTrain(QSharedPointer<FANN::neural_net> ann, NetworkOptimumParams params, QSharedPointer<FANN::training_data> data);
+   fann_type examineTrain(QSharedPointer<FANN::neural_net> ann, NetworkOptimumParams params, QSharedPointer<FANN::training_data> data, QSharedPointer<FANN::training_data> testData);
 
    fann_type trainNodes();
 
@@ -50,7 +50,8 @@ private:
     QMap<int, QString> classNames;
 
     QVector <QSharedPointer<FANN::neural_net> > nodes;
-    QVector <QSharedPointer<FANN::training_data> > datas;
+    QVector <QSharedPointer<FANN::training_data> > trainDatas;
+    QVector <QSharedPointer<FANN::training_data> > testDatas;
     QFileInfo fileInfo;
 };
 

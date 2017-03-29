@@ -13,7 +13,7 @@ class DataSplitter
 {
 public:
     DataSplitter();
-
+    ~DataSplitter(){delete classData;};
 public:
     bool exists();
     bool loadData(QString filename);

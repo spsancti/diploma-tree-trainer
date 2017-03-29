@@ -521,7 +521,7 @@ FANN_EXTERNAL struct fann_train_data *FANN_API fann_duplicate_train_data(struct 
 	struct fann_train_data *dest =
 		(struct fann_train_data *) malloc(sizeof(struct fann_train_data));
 
-	if(dest == NULL)
+    if(dest == NULL)
 	{
 		fann_error((struct fann_error*)data, FANN_E_CANT_ALLOCATE_MEM);
 		return NULL;

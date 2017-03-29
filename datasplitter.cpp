@@ -14,18 +14,26 @@ bool DataSplitter::exists()
     size_t cnt = 0;
     for(size_t i = 0; i < classNumber; i++)
     {
-        info.setFile(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".dat"));
+        info.setFile(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ "-train.dat"));
+        if(info.exists())
+            cnt ++;
+        info.setFile(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ "-test.dat"));
         if(info.exists())
             cnt ++;
     }
-    if(cnt == classNumber) return true;
+    if(cnt == 2 * classNumber) return true;
     else return false;
 }
 
 bool DataSplitter::loadData(QString filename)
 {
     filename_ = filename;
-    return data.read_train_from_file(filename.toStdString());
+    if(data.read_train_from_file(filename.toStdString()))
+    {
+        data.shuffle_train_data();
+        return true;
+    }
+    return false;
 }
 
 //TODO: refactor this function
@@ -80,9 +88,20 @@ bool DataSplitter::saveData()
     if(classData == NULL)
         return false;
 
+    FANN::training_data *pTrain = new FANN::training_data[classNumber];
+    FANN::training_data *pTest  = new FANN::training_data[classNumber];
+
     for(size_t i = 0; i < classNumber; i++)
     {
-        if(classData[i].save_train(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ ".dat").toStdString()) == -1)
+        pTrain[i] = classData[i];
+        pTest[i] = classData[i];
+
+        pTrain[i].subset_train_data(0, floorf(0.5 * (float)pTrain[i].length_train_data()));
+        pTest[i].subset_train_data(floorf(0.5 * (float)pTest[i].length_train_data())+1, floorf(0.5 * (float)pTest[i].length_train_data()) - 1);
+
+        if(pTrain[i].save_train(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ "-train.dat").toStdString()) == -1)
+            return false;
+        if(pTest[i].save_train(QString(filename_.split('.')[0] + QString::number(classCodes[i])+ "-test.dat").toStdString()) == -1)
             return false;
     }
     return true;
